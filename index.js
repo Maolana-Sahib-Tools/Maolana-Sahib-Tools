@@ -1,60 +1,54 @@
-const { 
-    default: makeWASocket, 
-    useMultiFileAuthState, 
-    DisconnectReason, 
-    fetchLatestBaileysVersion 
-} = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, delay } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
-const qrcode = require('qrcode-terminal');
 const pino = require('pino');
+const readline = require('readline');
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 
 async function startMaolanaBot() {
-    // Session save karne ka folder
     const { state, saveCreds } = await useMultiFileAuthState('maolana_session');
     const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
         version,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true, // QR code terminal mein dikhayega
         auth: state,
+        printQRInTerminal: false, // QR ki zaroorat nahi ab
         browser: ["Maolana-Bot", "Chrome", "1.0.0"]
     });
 
-    // Connection Updates (QR aur Login check)
+    if (!sock.authState.creds.registered) {
+        await delay(3000); 
+        console.log('\n--- PAIRING CODE METHOD ---');
+        // Number country code ke sath likhein, jaise 923...
+        let phoneNumber = "923XXXXXXXXX"; 
+        
+        const code = await sock.requestPairingCode(phoneNumber);
+        console.log(`\n✅ APKA PAIRING CODE YE HAI: ${code}`);
+        console.log('Isay WhatsApp ke "Link with phone number" mein dalein.\n');
+    }
+
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-        if (qr) {
-            console.log('--- SCAN THIS QR CODE WITH WHATSAPP ---');
-            qrcode.generate(qr, { small: true });
-        }
+        const { connection, lastDisconnect } = update;
         if (connection === 'close') {
             const shouldReconnect = (lastDisconnect.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
             if (shouldReconnect) startMaolanaBot();
         } else if (connection === 'open') {
-            console.log('✅ BOT CONNECTED SUCCESSFULLY!');
+            console.log('\n✅ BOT CONNECT HO GAYA HAI!');
         }
     });
 
     sock.ev.on('creds.update', saveCreds);
 
-    // Messages Handling
     sock.ev.on('messages.upsert', async ({ messages }) => {
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
-
         const from = msg.key.remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
-        // Simple Commands
-        if (text.toLowerCase() === '.menu') {
-            await sock.sendMessage(from, { text: '*🛠 MAOLANA BOT MENU*\n\n1. .status\n2. .owner\n3. .id' });
-        }
-        if (text === '.status') {
-            await sock.sendMessage(from, { text: 'Bot is Active 💯' });
-        }
-        if (text === '.owner') {
-            await sock.sendMessage(from, { text: 'Admin: Abdul Salam' });
+        if (text.toLowerCase() === '.status') {
+            await sock.sendMessage(from, { text: 'Bot Active Hai ✅' });
         }
     });
 }
