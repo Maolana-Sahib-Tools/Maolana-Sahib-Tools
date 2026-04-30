@@ -1,10 +1,6 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, delay } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
-const readline = require('readline');
-
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 
 async function startMaolanaBot() {
     const { state, saveCreds } = await useMultiFileAuthState('maolana_session');
@@ -14,19 +10,19 @@ async function startMaolanaBot() {
         version,
         logger: pino({ level: 'silent' }),
         auth: state,
-        printQRInTerminal: false, // QR ki zaroorat nahi ab
+        printQRInTerminal: false,
         browser: ["Maolana-Bot", "Chrome", "1.0.0"]
     });
 
+    // Pairing Code Logic
     if (!sock.authState.creds.registered) {
         await delay(3000); 
         console.log('\n--- PAIRING CODE METHOD ---');
-        // Number country code ke sath likhein, jaise 923...
+        // Yahan apna sahi number country code ke sath likhein
         let phoneNumber = "923XXXXXXXXX"; 
         
         const code = await sock.requestPairingCode(phoneNumber);
         console.log(`\n✅ APKA PAIRING CODE YE HAI: ${code}`);
-        console.log('Isay WhatsApp ke "Link with phone number" mein dalein.\n');
     }
 
     sock.ev.on('connection.update', (update) => {
@@ -47,8 +43,15 @@ async function startMaolanaBot() {
         const from = msg.key.remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
+        // Commands
         if (text.toLowerCase() === '.status') {
             await sock.sendMessage(from, { text: 'Bot Active Hai ✅' });
+        } 
+        else if (text.toLowerCase() === '.owner') {
+            await sock.sendMessage(from, { text: 'Is Bot Ke Admin *Maolana Sahib* Hain.' });
+        }
+        else if (text.toLowerCase() === '.menu') {
+            await sock.sendMessage(from, { text: '*🛠 MAOLANA BOT MENU*\n\n1. .status\n2. .owner\n3. .menu' });
         }
     });
 }
