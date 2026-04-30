@@ -19,7 +19,7 @@ async function startMaolanaBot() {
         await delay(3000); 
         console.log('\n--- PAIRING CODE METHOD ---');
         // Yahan apna sahi number country code ke sath likhein
-        let phoneNumber = "923XXXXXXXXX"; 
+        let phoneNumber = "923095304724"; 
         
         const code = await sock.requestPairingCode(phoneNumber);
         console.log(`\n✅ APKA PAIRING CODE YE HAI: ${code}`);
